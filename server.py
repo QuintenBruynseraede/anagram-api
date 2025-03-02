@@ -54,12 +54,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Final message
             await websocket.send_text("[Done]")
-
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        # Handle disconnection
-        print("Client disconnected")
+        await websocket.close()
 
 
 if __name__ == "__main__":

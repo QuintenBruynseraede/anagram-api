@@ -1,21 +1,46 @@
 let socket;
 let isProcessing = false;
 let isConnected = false;
+let numResults = 0;
 
-const messageLog = document.getElementById("messageLog");
-const statusDisplay = document.getElementById("status");
-const userInput = document.getElementById("userInput");
-const processButton = document.getElementById("processButton");
+const resultsDiv = document.getElementById("results");
+const anagramsList = document.getElementById("anagrams-list");
+const userInput = document.getElementById("user-input");
+const generateButton = document.getElementById("generate");
+const progressSpinner = document.getElementById("progress-spinner");
 
 function appendMessage(message) {
-  const messageElement = document.createElement("div");
-  messageElement.textContent = message;
-  messageElement.style.marginBottom = "5px";
-  messageLog.appendChild(messageElement);
+  const result = document.createElement("div");
+  result.innerHTML = `
+<li class="p-4 hover:bg-gray-50 transition">
+  <span class="text-gray-800 font-medium">${message}</span>
+</li>`;
+  anagramsList.appendChild(result);
 }
 
 function clearMessages() {
-  messageLog.innerHTML = "";
+  anagramsList.innerHTML = "";
+}
+
+function startProcessing() {
+  isProcessing = true;
+  generateButton.disabled = true;
+  generateButton.classList.add("cursor-not-allowed");
+  generateButton.classList.add("bg-neutral-300");
+  generateButton.classList.remove("hover:bg-blue-800");
+  userInput.disabled = true;
+  resultsDiv.classList.remove("hidden");
+  progressSpinner.classList.remove("hidden");
+}
+
+function stopProcessing() {
+  isProcessing = false;
+  generateButton.disabled = false;
+  generateButton.classList.remove("cursor-not-allowed");
+  generateButton.classList.remove("bg-neutral-300");
+  generateButton.classList.add("hover:bg-blue-800");
+  userInput.disabled = false;
+  progressSpinner.classList.add("hidden");
 }
 
 function connect() {
@@ -28,10 +53,8 @@ function connect() {
     // Create WebSocket connection
     socket = new WebSocket(`ws://${window.location.host}/ws`);
 
-    socket.onopen = function (e) {
+    socket.onopen = function (_) {
       console.log("Connection established");
-      statusDisplay.textContent = "Connected";
-      statusDisplay.className = "status processing";
       isConnected = true;
       resolve();
     };
@@ -39,14 +62,11 @@ function connect() {
     socket.onmessage = function (event) {
       console.log(`Data received from server: ${event.data}`);
       appendMessage(event.data);
+      numResults++;
 
       // Check if the message indicates processing is complete
       if (event.data.includes("[Done]")) {
-        isProcessing = false;
-        statusDisplay.textContent = "Idle";
-        statusDisplay.className = "status idle";
-        processButton.disabled = false;
-        userInput.disabled = false;
+        stopProcessing();
       }
     };
 
@@ -60,17 +80,11 @@ function connect() {
       } else {
         console.log("Connection died");
       }
-
-      // Update UI
-      statusDisplay.textContent = "Idle";
-      statusDisplay.className = "status idle";
       isProcessing = false;
 
       // If we were in the middle of processing, enable the UI again
       if (isProcessing) {
-        processButton.disabled = false;
-        userInput.disabled = false;
-        isProcessing = false;
+        stopProcessing();
       }
 
       reject(new Error("Connection closed"));
@@ -81,8 +95,6 @@ function connect() {
       appendMessage(`Error: ${error.message}`);
 
       // Update UI
-      statusDisplay.textContent = "Error";
-      statusDisplay.className = "status idle";
       isConnected = false;
 
       reject(error);
@@ -90,7 +102,7 @@ function connect() {
   });
 }
 
-async function processData() {
+async function findAnagrams() {
   const data = userInput.value;
   if (!data) {
     appendMessage("Please enter some data to process");
@@ -103,14 +115,8 @@ async function processData() {
   }
 
   try {
-    // Set processing state
-    isProcessing = true;
-    statusDisplay.textContent = "Generating...";
-    statusDisplay.className = "status processing";
-    processButton.disabled = true;
-    userInput.disabled = true;
+    startProcessing();
 
-    // Ensure we're connected before sending
     if (!isConnected) {
       await connect();
     }
@@ -119,15 +125,13 @@ async function processData() {
     socket.send(data);
     clearMessages();
   } catch (error) {
-    isProcessing = false;
-    processButton.disabled = false;
-    userInput.disabled = false;
+    stopProcessing();
   }
 }
 
-processButton.addEventListener("click", processData);
-userInput.addEventListener("keypress", function (e) {
+generateButton.addEventListener("click", findAnagrams);
+generateButton.addEventListener("keypress", function (e) {
   if (e.key === "Enter" && !isProcessing) {
-    processData();
+    findAnagrams();
   }
 });
