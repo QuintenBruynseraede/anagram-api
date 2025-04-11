@@ -16,10 +16,7 @@ class MockAlgorithm(AnagramAlgorithm):
             await sleep(1)
 
 
-# ----------------------- Method 1: find list of words in dictionary
-
-
-class RecursiveAlgorithm(AnagramAlgorithm):
+class RecursiveAlgorithm:
     async def find(self, inputs: Inputs, query: Query) -> AsyncGenerator[str]:
         async def _find(
             remainder: Counter[str], words: list[str]
